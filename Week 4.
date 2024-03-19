@@ -6,12 +6,12 @@
 // Forward declaration to allow reference from Room and Character classes
 class Item;
 
-// Task 1: Create a Room Class with composition
+// Task 1: Create a Room Class (Composition)
 class Room {
 private:
-    std::string description; // Describes the room
-    std::map<std::string, Room*> exits; // Maps directions to other Room pointers
-    std::vector<Item> items; // Contains items within the room
+    std::string description;
+    std::map<std::string, Room*> exits;
+    std::vector<Item> items;
 
 public:
     Room(const std::string& desc) : description(desc) {}
@@ -20,31 +20,30 @@ public:
         items.push_back(item);
     }
 
-    // This method was mentioned in the PDF but not implemented in the initial code snippet.
-    void RemoveItem(const Item& item); // Implementation is still required
+    void RemoveItem(const Item& item); // To be implemented
 
     void AddExit(const std::string& direction, Room* room) {
-        exits[direction] = room; // Enables adding exits to the room
+        exits[direction] = room;
     }
 
-    // Getter for room description, aids in enhancing game's narrative
+    // Example of a method to get a description (not part of original task but useful)
     std::string GetDescription() const { return description; }
 
-    // Retrieves a room based on a given direction, supports room navigation
+    // Example of a method to get exits (not part of original task but useful)
     Room* GetExit(const std::string& direction) {
         if (exits.find(direction) != exits.end()) {
             return exits[direction];
         } else {
-            return nullptr; // Returns null if no exit exists in the specified direction
+            return nullptr;
         }
     }
 };
 
-// Task 2: Create an Item Class for game items
+// Task 2: Create an Item Class (Composition)
 class Item {
 private:
-    std::string name; // Item name
-    std::string description; // Item description
+    std::string name;
+    std::string description;
 
 public:
     Item(const std::string& name, const std::string& desc) : name(name), description(desc) {}
@@ -53,70 +52,68 @@ public:
         std::cout << "Interacting with " << name << ": " << description << std::endl;
     }
 
-    // Accessors for name and description, allows item interactions
     std::string GetName() const { return name; }
     std::string GetDescription() const { return description; }
 };
 
-// Task 3: Extend Character Class through inheritance
+// Task three, character class with inheritence 
 class Character {
 protected:
-    std::string name; // Character name
-    int health; // Health points
-    std::vector<Item> inventory; // Inventory of items
+    std::string name;
+    int health;
+    std::vector<Item> inventory;
 
 public:
     Character(const std::string& name, int health) : name(name), health(health) {}
 
     void TakeDamage(int damage) {
         health -= damage;
-        if (health < 0) health = 0; // Prevents health from becoming negative
+        if (health < 0) health = 0;
     }
 
-    // Methods for inventory management would be here (add, remove items, etc.)
+    // Inventory management methods not shown here
 };
 
 class Player : public Character {
 private:
-    Room* location; // Current room of the player
+    Room* location;
 
 public:
     Player(const std::string& name, int health) : Character(name, health), location(nullptr) {}
 
     void SetLocation(Room* newLocation) {
-        location = newLocation; // Sets the player's current room
+        location = newLocation;
     }
 
     Room* GetLocation() const { return location; }
 };
 
-// Task 4: Main function setup and game loop
+// task 4 composition 
+
 int main() {
-    // Setup rooms
+    // Create Rooms
     Room startRoom("You are in a dimly lit room.");
     Room hallway("You are in a long hallway.");
     Room treasureRoom("You have entered a treasure room!");
 
-    // Setup room exits
     startRoom.AddExit("north", &hallway);
     hallway.AddExit("south", &startRoom);
     hallway.AddExit("north", &treasureRoom);
     treasureRoom.AddExit("south", &hallway);
 
-    // Setup items
+    // creating the items 
     Item key("Key", "A shiny key that looks important.");
     Item sword("Sword", "A sharp sword with a golden hilt.");
 
-    // Add items to rooms
+    // adding items to the room. 
     startRoom.AddItem(key);
     treasureRoom.AddItem(sword);
 
-    // Initialize player
+    // Create a Player
     Player player("Alice", 100);
+
+    // players starting location. 
     player.SetLocation(&startRoom);
 
-    // The implementation of the game loop mentioned in Task 4 should go here
-    // It involves interaction prompts and handling player inputs to explore rooms, interact with items, etc.
-    // This section is left as a placeholder for further development.
+    return 0; 
 }
-
