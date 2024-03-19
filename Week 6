@@ -1,90 +1,129 @@
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 #include <map>
+#include <vector>
 
-// Forward declarations
+// Forward declaration to enable references from CommandInterpreter to Player
 class Player;
-class Room; // Assuming Room class exists from previous labs
 
-// CommandInterpreter class definition
+// A simple Room class to be used by Player for demonstration purposes
+class Room {
+public:
+    std::string name;
+    std::map<std::string, Room*> exits;
+
+    Room(std::string name) : name(name) {}
+
+    void addExit(std::string direction, Room* room) {
+        exits[direction] = room;
+    }
+
+    Room* getExit(std::string direction) {
+        if (exits.find(direction) != exits.end()) {
+            return exits[direction];
+        } else {
+            return nullptr;
+        }
+    }
+};
+
+// Task 1: Design the Command Interpreter Class
 class CommandInterpreter {
 public:
     CommandInterpreter(Player* player) : player_(player) {}
 
-    void interpretCommand(const std::string& command) {
-        std::istringstream iss(command);
-        std::string action;
-        std::getline(iss, action, ' '); // Gets the command keyword
-
-        if (action == "move") {
-            std::string direction;
-            if (std::getline(iss, direction)) { // Checks for additional parameter (direction)
-                player_->move(direction);
-            } else {
-                std::cout << "Move where?" << std::endl;
-            }
-        } 
-        else if (action == "pickup") {
-            std::string item;
-            if (std::getline(iss, item)) {
-                player_->pickUpItem(item);
-            } else {
-                std::cout << "Pick up what?" << std::endl;
-            }
-        } 
-        else if (action == "look") {
-            player_->lookAround();
-        } 
-        else {
-            std::cout << "Unknown command: " << command << std::endl;
-        }
-    }
+    void interpretCommand(const std::string& command);
 
 private:
     Player* player_; // Pointer to the player object
 };
 
-// Assuming the Player class is updated to include the actions defined above
+// Task 2: Implement Player and NPC Actions
 class Player {
 private:
-    Room* currentRoom; // Assuming the player is in a room
+    Room* currentRoom;
 
 public:
+    Player() : currentRoom(nullptr) {}
+
+  // simple ai determines course of action based on player action.
+
     void move(const std::string& direction) {
-        // Implement movement logic, changing the player's current room based on the direction
-        std::cout << "Player moves " << direction << "." << std::endl;
+        if (currentRoom != nullptr) {
+            Room* nextRoom = currentRoom->getExit(direction);
+            if (nextRoom != nullptr) {
+                currentRoom = nextRoom;
+                std::cout << "Moved to " << currentRoom->name << "." << std::endl;
+            } else {
+                std::cout << "You can't go that way." << std::endl;
+            }
+        }
     }
 
-    void pickUpItem(const std::string& item) {
-        // Implement item pickup logic
-        std::cout << "Player picks up " << item << "." << std::endl;
+    void lookAround() const {
+        if (currentRoom != nullptr) {
+            std::cout << "You are in " << currentRoom->name << "." << std::endl;
+            if (!currentRoom->exits.empty()) {
+                std::cout << "Exits:";
+                for (const auto& exit : currentRoom->exits) {
+                    std::cout << " " << exit.first;
+                }
+                std::cout << std::endl;
+            } else {
+                std::cout << "There are no exits." << std::endl;
+            }
+        } else {
+            std::cout << "You are nowhere." << std::endl;
+        }
     }
 
-    void lookAround() {
-        // Implement logic to describe the current room, its items, and exits
-        std::cout << "Player looks around." << std::endl;
+    void setCurrentRoom(Room* room) {
+        currentRoom = room;
     }
-
-    // Other methods as needed
 };
 
+// re task 3 to integrate interpreter
+// here is to execute player commands through the interpreter.
+void CommandInterpreter::interpretCommand(const std::string& command) {
+  
+    std::istringstream iss(command);
+    std::string action;
+    iss >> action;
+
+    if (action == "move") {
+        std::string direction;
+        if (iss >> direction) {
+            player_->move(direction);
+        } else {
+            std::cout << "Move where?" << std::endl;
+        }
+      
+    } else if (action == "look") {
+        player_->lookAround();
+    } else {
+        std::cout << "Unknown command." << std::endl;
+    }
+}
+
 int main() {
+    // small world for demonstration. 
+    Room* startRoom = new Room("Start Room");
+    Room* secondRoom = new Room("Second Room");
+    startRoom->addExit("north", secondRoom);
+
     Player player;
+    player.setCurrentRoom(startRoom);
+
     CommandInterpreter interpreter(&player);
 
     std::string command;
-    while (true) {
-        std::cout << "> ";
-        std::getline(std::cin, command);
-
-        // Exit the loop if the command is "quit"
-        if (command == "quit") {
-            break;
-        }
-
+    std::cout << "Enter commands ('quit' to exit):" << std::endl;
+    while (std::getline(std::cin, command) && command != "quit") {
         interpreter.interpretCommand(command);
     }
 
+    delete startRoom;
+    delete secondRoom;
     return 0;
 }
