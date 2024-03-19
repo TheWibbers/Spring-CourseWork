@@ -1,0 +1,363 @@
+#include <fstream>
+#include <iostream>
+#include <vector>
+#include <string>
+#include <map>
+#include <memory>
+#include <unordered_map>
+#include <sstream>
+
+// Forward declaration to enable references in GameObject and Player classes
+class Room;
+
+class Quest;
+
+// Base class for all game objects with interaction capabilities
+class GameObject {
+public:
+    virtual void interact(GameObject& other) = 0;
+    virtual ~GameObject() = default;
+    virtual std::string getName() const = 0; // Add a method to get the item's name
+};
+
+class Key : public GameObject {
+public:
+    void interact(GameObject& other) override {
+        std::cout << "Key is interacting with another object." << std::endl;
+    }
+    std::string getName() const override { return "Key"; }
+};
+
+class Door : public GameObject {
+public:
+    void interact(GameObject& other) override {
+        std::cout << "Door is being interacted with. Checking if it's a key." << std::endl;
+    }
+};
+
+class Inventory {
+private:
+    std::vector<std::unique_ptr<GameObject>> items;
+public:
+    void addItem(std::unique_ptr<GameObject> item) {
+        items.push_back(std::move(item));
+    }
+
+    const std::vector<std::unique_ptr<GameObject>>& getItems() const {
+        return items;
+    }
+
+    void useItem(GameObject& item, GameObject& target) {
+        item.interact(target);
+    }
+};
+
+class Room {
+private:
+    std::string id;
+    std::string description;
+    std::unordered_map<std::string, Room*> connections;
+public:
+    Room(const std::string& roomId, const std::string& desc) : id(roomId), description(desc) {}
+
+    void connectRoom(const std::string& direction, Room* room) {
+        connections[direction] = room;
+    }
+
+    Room* getConnectedRoom(const std::string& direction) const {
+        auto it = connections.find(direction);
+        if (it != connections.end()) return it->second;
+        return nullptr;
+    }
+
+    const std::string& getDescription() const { return description; }
+    const std::string& getID() const { return id; }
+};
+
+class Player {
+private:
+    Room* currentRoom;
+    Inventory inventory;
+    std::vector<Quest> quests;
+
+public:
+    Player() : currentRoom(nullptr) {}
+
+    // Sets the current room for the player
+    void setCurrentRoom(Room* room) {
+        currentRoom = room;
+        std::cout << "You've moved to: " << room->getDescription() << std::endl;
+    }
+
+    // Returns the current room of the player
+    Room* getCurrentRoom() const {
+        return currentRoom;
+    }
+
+    // Returns the player's inventory
+    Inventory& getInventory() {
+        return inventory;
+    }
+
+    // Adds a quest to the player's list of quests
+    void addQuest(const Quest& quest) {
+        quests.push_back(quest);
+        std::cout << "New quest added: " << quest.getName() << std::endl;
+    }
+
+    // Handles the logic for picking up an item and checking quest objectives
+    void pickUpItem(std::unique_ptr<GameObject> item) {
+        std::cout << "Picked up an item." << std::endl;
+        inventory.addItem(std::move(item));
+
+        // Check if picking up this item completes an objective in any quest
+        for (auto& quest : quests) {
+            if (quest.getStatus() == Quest::InProgress) {
+                quest.completeObjective("Pick up the key"); // Assuming objective descriptions are unique
+            }
+        }
+    }
+
+    // Uses an item on a target, handling the interaction and quest objective completion
+    void useItemOn(GameObject& item, GameObject& target) {
+        item.interact(target);
+
+        // Check if using this item completes an objective in any quest
+        for (auto& quest : quests) {
+            if (quest.getStatus() == Quest::InProgress) {
+                quest.completeObjective("Use key on door"); // Assuming objective descriptions are unique
+            }
+        }
+    }
+};
+
+// Quest Objective for tracking individual objectives within a quest. 
+struct QuestObjective {
+    std::string description;
+    bool completed;
+    QuestObjective(const std::string& desc) : description(desc), completed(false) {}
+};
+
+class Quest {
+public:
+    enum Status { NotStarted, InProgress, Completed };
+    std::string name;
+    Status status;
+    std::vector<QuestObjective> objectives;
+
+    Quest(const std::string& name) : name(name), status(NotStarted) {}
+
+    // Factory method to create a specific quest
+    static Quest findKeyQuest() {
+        Quest q("Find and Use Key");
+        q.addObjective(QuestObjective("Pick up the key"));
+        q.addObjective(QuestObjective("Use key on door"));
+        return q;
+    }
+
+    void start() {
+        status = InProgress;
+        std::cout << name << " has started." << std::endl;
+    }
+
+    void startForKey() {
+        if (status == NotStarted) {
+            start();
+        }
+        completeObjective("Pick up the key");
+    }
+
+    void completeObjective(const std::string& objectiveDescription) {
+        for (auto& obj : objectives) {
+            if (obj.description == objectiveDescription && !obj.completed) {
+                obj.completed = true;
+                std::cout << "Objective completed: " << objectiveDescription << std::endl;
+                break;
+            }
+        }
+        checkCompletion();
+    }
+
+    void checkCompletion() {
+        for (const auto& obj : objectives) {
+            if (!obj.completed) return;
+        }
+        status = Completed;
+        std::cout << name << " has been completed." << std::endl;
+    }
+
+    void addObjective(const QuestObjective& objective) {
+        objectives.push_back(objective);
+    }
+
+    const std::string& getName() const {
+        return name;
+    }
+};
+
+// Game saver/loader placeholder
+class GameSaverLoader {
+public:
+    void saveGame(const std::string& filename, const Player& player, const std::unordered_map<std::string, Room*>& rooms) {
+        std::ofstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open save file for writing." << std::endl;
+            return;
+        }
+
+        // Save player state
+        file << "PlayerRoom=" << player.getCurrentRoom()->getID() << std::endl;
+        file << "PlayerInventory=";
+        for (const auto& item : player.getInventory().getItems()) {
+            file << item.getName() << ",";
+        }
+        file << std::endl;
+
+        // Save rooms state
+        for (const auto& roomPair : rooms) {
+            file << "Room" << roomPair.first << "Visited=" << (roomPair.second->isVisited() ? "true" : "false") << std::endl;
+        }
+
+        file.close();
+        std::cout << "Game saved." << std::endl;
+    }
+
+    void loadGame(const std::string& filename, Player& player, std::unordered_map<std::string, Room*>& rooms) {
+        std::ifstream file(filename);
+        if (!file.is_open()) {
+            std::cerr << "Failed to open save file for reading." << std::endl;
+            return;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            std::string key, value;
+            if (std::getline(iss, key, '=') && std::getline(iss, value)) {
+                if (key == "PlayerRoom") {
+                    // Assume setPlayerRoom takes a room ID
+                    player.setPlayerRoom(rooms[value]);
+                } else if (key == "PlayerInventory") {
+                    std::istringstream itemList(value);
+                    std::string item;
+                    while (std::getline(itemList, item, ',')) {
+                        if (!item.empty()) {
+                            player.addItemToInventory(item);
+                        }
+                    }
+                } else if (key.find("Room") == 0 && key.find("Visited") != std::string::npos) {
+                    std::string roomId = key.substr(4, key.find("Visited") - 4);
+                    bool visited = (value == "true");
+                    // Assuming rooms is a map of room IDs to Room pointers
+                    rooms[roomId]->setVisited(visited);
+                }
+            }
+        }
+
+        file.close();
+        std::cout << "Game loaded." << std::endl;
+    }
+};
+
+// GameWorld class
+class GameWorld {
+private:
+    std::unordered_map<std::string, Room*> rooms;
+
+public:
+    ~GameWorld() {
+        for (auto& pair : rooms) {
+            delete pair.second;
+        }
+    }
+
+    void loadMapFromFile(const std::string& filename) {
+        std::ifstream file(filename);
+        std::string line;
+        std::getline(file, line); // Skip the header line
+
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            std::string segment;
+            std::vector<std::string> segments;
+
+            while (std::getline(iss, segment, ',')) {
+                segments.push_back(segment);
+            }
+
+            std::string roomId = segments[0];
+            Room* room = new Room(segments[1], roomId);
+            rooms[roomId] = room;
+
+            for (size_t i = 2; i < segments.size(); ++i) {
+                if (!segments[i].empty()) {
+                    std::string direction = ""; // Determine direction based on index
+                    std::string connectedRoomId = segments[i]; // Obtain connected room ID
+                    room->connectRoom(direction, rooms[connectedRoomId]);
+                }
+            }
+
+            if (segments.size() > 6 && !segments[6].empty()) {
+                room->addItem(segments[6]); // Adds the first item, extend as needed
+            }
+        }
+
+        file.close();
+    }
+};
+
+// CommandInterpreter class modification
+void CommandInterpreter::interpretCommand(const std::string& commandLine) {
+    std::istringstream stream(commandLine);
+    std::string action;
+    stream >> action;
+
+    if (action == "move") {
+        std::string direction;
+        stream >> direction;
+        player->move(direction);
+    } else if (action == "pick") {
+        std::string itemName;
+        stream >> itemName;
+        player->pickUpItem(new Key()); // Simplification, assuming picking a "Key"
+        std::cout << "You picked up a " << itemName << "." << std::endl;
+    } else if (action == "use") {
+        // For simplicity, assuming "use key door"
+        std::string itemName, targetName;
+        stream >> itemName >> targetName;
+        Door door;
+        Key key;
+        key.interact(door);
+    } else {
+        std::cout << "Unknown command." << std::endl;
+    }
+}
+
+
+// Main game loop
+int main() {
+    Player player;
+    CommandInterpreter interpreter(&player);
+
+    // Setup rooms and player starting room
+    Room startRoom("Start Room", "start");
+    Room northRoom("North Room", "north");
+    startRoom.connectRoom("north", &northRoom);
+    player.setCurrentRoom(&startRoom);
+
+    std::cout << "Welcome to the Adventure Game. Type 'quit' to exit." << std::endl;
+
+    std::string commandLine;
+    while (true) {
+        std::cout << "> ";
+        std::getline(std::cin, commandLine);
+
+        if (commandLine == "quit") {
+            break;
+        }
+
+        interpreter.interpretCommand(commandLine);
+    }
+
+    return 0;
+}
