@@ -5,88 +5,44 @@
 #include <map>
 #include <vector>
 
-// Forward declaration to allow references from Room and Character classes
-class Item;
+// task 1 to create an area task. 
+class Item {
+public:
+    std::string name;
+    std::string description;
 
-// Task 1 from Part 1: Room Class
+    Item(const std::string& name, const std::string& desc) : name(name), description(desc) {}
+
+    void Interact() const {
+        std::cout << "You see " << name << ": " << description << std::endl;
+    }
+};
+
 class Room {
-private:
+public:
     std::string description;
     std::map<std::string, Room*> exits;
     std::vector<Item> items;
 
-public:
     Room(const std::string& desc) : description(desc) {}
-
-    void AddItem(const Item& item) {
-        items.push_back(item);
-    }
 
     void AddExit(const std::string& direction, Room* room) {
         exits[direction] = room;
     }
 
-    std::string GetDescription() const { return description; }
-    std::vector<Item> GetItems() const { return items; }
-    Room* GetExit(const std::string& direction) {
-        if (exits.find(direction) != exits.end()) {
-            return exits[direction];
-        } else {
-            return nullptr;
+    void AddItem(const Item& item) {
+        items.push_back(item);
+    }
+
+    Room* GetExit(const std::string& direction) const {
+        auto it = exits.find(direction);
+        if (it != exits.end()) {
+            return it->second;
         }
-    }
-    // Method to display available exits (needed for task enhancements)
-    std::map<std::string, Room*> GetExits() const { return exits; }
-};
-
-// Task 2 from Part 1: Item Class
-class Item {
-private:
-    std::string name;
-    std::string description;
-
-public:
-    Item(const std::string& name, const std::string& desc) : name(name), description(desc) {}
-
-    void Interact() {
-        std::cout << "Interacting with " << name << ": " << description << std::endl;
-    }
-
-    std::string GetName() const { return name; }
-    std::string GetDescription() const { return description; }
-};
-
-// Task 3 from Part 1: Character and Player Classes
-class Character {
-protected:
-    std::string name;
-    int health;
-    std::vector<Item> inventory;
-
-public:
-    Character(const std::string& name, int health) : name(name), health(health) {}
-
-    void TakeDamage(int damage) {
-        health -= damage;
-        if (health < 0) health = 0;
+        return nullptr;
     }
 };
 
-class Player : public Character {
-private:
-    Room* location;
-
-public:
-    Player(const std::string& name, int health) : Character(name, health), location(nullptr) {}
-
-    void SetLocation(Room* newLocation) {
-        location = newLocation;
-    }
-
-    Room* GetLocation() const { return location; }
-};
-
-// Task 1 from Part 2: Area Class
 class Area {
 private:
     std::map<std::string, Room*> rooms;
@@ -96,12 +52,12 @@ public:
         rooms[name] = room;
     }
 
-    Room* GetRoom(const std::string& name) {
-        if (rooms.find(name) != rooms.end()) {
-            return rooms[name];
-        } else {
-            return nullptr;
+    Room* GetRoom(const std::string& name) const {
+        auto it = rooms.find(name);
+        if (it != rooms.end()) {
+            return it->second;
         }
+        return nullptr;
     }
 
     void ConnectRooms(const std::string& room1Name, const std::string& room2Name, const std::string& direction) {
@@ -112,34 +68,85 @@ public:
         }
     }
 
+    // Refacting mainn cpde to use area class and load from a file.
     void LoadMapFromFile(const std::string& filename) {
         std::ifstream file(filename);
         std::string line;
-        while (std::getline(file, line)) {
+        while (getline(file, line)) {
             std::istringstream iss(line);
-            std::string room1Name, room2Name, direction;
-            if (std::getline(iss, room1Name, '|') && std::getline(iss, room2Name, '|') && std::getline(iss, direction)) {
-                if (!GetRoom(room1Name)) AddRoom(room1Name, new Room(room1Name));
-                if (!GetRoom(room2Name)) AddRoom(room2Name, new Room(room2Name));
-                ConnectRooms(room1Name, room2Name, direction);
+            std::string roomName, connectedRoomName, direction;
+            if (!(iss >> roomName >> connectedRoomName >> direction)) break;
+
+            // for simplicity, im just going to create the rooms here. 
+            ConnectRooms(roomName, connectedRoomName, direction);
+        }
+    }
+};
+
+class Player {
+public:
+    std::string name;
+    Room* currentRoom;
+
+    Player(const std::string& playerName) : name(playerName), currentRoom(nullptr) {}
+
+    void MoveToRoom(Room* room) {
+        currentRoom = room;
+        std::cout << "Moving to " << room->description << std::endl;
+    }
+
+    void LookAround() const {
+        if (currentRoom) {
+            std::cout << "You are in " << currentRoom->description << std::endl;
+            for (const auto& item : currentRoom->items) {
+                std::cout << "You see a " << item.name << std::endl;
             }
         }
     }
 };
 
-// Task 2 from Part 2: Refactor the Main Code
 int main() {
+    // creating the game wor.d 
     Area gameWorld;
 
-    // Load the game map from a text file
-    gameWorld.LoadMapFromFile("game_map.txt");
+    // manage game world .
+    gameWorld.LoadMapFromFile("game_map.txt"); // file created. 
 
-    // Create a Player
-    Player player("Alice", 100);
+    // creating player and placing him in the room.
+    Player player("Adventurer");
+    player.MoveToRoom(gameWorld.GetRoom("Start"));
 
-    // Set the player's starting room (you can modify this room name)
-    Room* currentRoom = gameWorld.GetRoom("startRoom");
-    player.SetLocation(currentRoom);
+    // Task 3; testing the refactored game
+    bool gameRunning = true;
+    while (gameRunning) {
+        std::cout << "You are in: " << player.currentRoom->description << std::endl;
+        std::cout << "1. Look around\n2. Move north\n3. Quit" << std::endl;
+        std::cout << "> ";
+        int choice;
+        std::cin >> choice;
 
-    // Game loop
+        switch (choice) {
+            case 1:
+                player.LookAround();
+                break;
+            case 2:
+                if (auto* nextRoom = player.currentRoom->GetExit("north")) {
+                    player.MoveToRoom(nextRoom);
+                } else {
+                    std::cout << "You can't go that way." << std::endl;
+                }
+                          break;
+                      case 3:
+                          gameRunning = false;
+                          std::cout << "Exiting game." << std::endl;
+                          break;
+                      default:
+                          std::cout << "Invalid choice, please try again." << std::endl;
+                          break;
+                  }
+              }
+
+              return 0;
+          }
+
 
