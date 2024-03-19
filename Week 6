@@ -1,0 +1,90 @@
+#include <iostream>
+#include <string>
+#include <sstream>
+#include <map>
+
+// Forward declarations
+class Player;
+class Room; // Assuming Room class exists from previous labs
+
+// CommandInterpreter class definition
+class CommandInterpreter {
+public:
+    CommandInterpreter(Player* player) : player_(player) {}
+
+    void interpretCommand(const std::string& command) {
+        std::istringstream iss(command);
+        std::string action;
+        std::getline(iss, action, ' '); // Gets the command keyword
+
+        if (action == "move") {
+            std::string direction;
+            if (std::getline(iss, direction)) { // Checks for additional parameter (direction)
+                player_->move(direction);
+            } else {
+                std::cout << "Move where?" << std::endl;
+            }
+        } 
+        else if (action == "pickup") {
+            std::string item;
+            if (std::getline(iss, item)) {
+                player_->pickUpItem(item);
+            } else {
+                std::cout << "Pick up what?" << std::endl;
+            }
+        } 
+        else if (action == "look") {
+            player_->lookAround();
+        } 
+        else {
+            std::cout << "Unknown command: " << command << std::endl;
+        }
+    }
+
+private:
+    Player* player_; // Pointer to the player object
+};
+
+// Assuming the Player class is updated to include the actions defined above
+class Player {
+private:
+    Room* currentRoom; // Assuming the player is in a room
+
+public:
+    void move(const std::string& direction) {
+        // Implement movement logic, changing the player's current room based on the direction
+        std::cout << "Player moves " << direction << "." << std::endl;
+    }
+
+    void pickUpItem(const std::string& item) {
+        // Implement item pickup logic
+        std::cout << "Player picks up " << item << "." << std::endl;
+    }
+
+    void lookAround() {
+        // Implement logic to describe the current room, its items, and exits
+        std::cout << "Player looks around." << std::endl;
+    }
+
+    // Other methods as needed
+};
+
+int main() {
+    Player player;
+    CommandInterpreter interpreter(&player);
+
+    std::string command;
+    while (true) {
+        std::cout << "> ";
+        std::getline(std::cin, command);
+
+        // Exit the loop if the command is "quit"
+        if (command == "quit") {
+            break;
+        }
+
+        interpreter.interpretCommand(command);
+    }
+
+    return 0;
+}
