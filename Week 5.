@@ -1,0 +1,145 @@
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <string>
+#include <map>
+#include <vector>
+
+// Forward declaration to allow references from Room and Character classes
+class Item;
+
+// Task 1 from Part 1: Room Class
+class Room {
+private:
+    std::string description;
+    std::map<std::string, Room*> exits;
+    std::vector<Item> items;
+
+public:
+    Room(const std::string& desc) : description(desc) {}
+
+    void AddItem(const Item& item) {
+        items.push_back(item);
+    }
+
+    void AddExit(const std::string& direction, Room* room) {
+        exits[direction] = room;
+    }
+
+    std::string GetDescription() const { return description; }
+    std::vector<Item> GetItems() const { return items; }
+    Room* GetExit(const std::string& direction) {
+        if (exits.find(direction) != exits.end()) {
+            return exits[direction];
+        } else {
+            return nullptr;
+        }
+    }
+    // Method to display available exits (needed for task enhancements)
+    std::map<std::string, Room*> GetExits() const { return exits; }
+};
+
+// Task 2 from Part 1: Item Class
+class Item {
+private:
+    std::string name;
+    std::string description;
+
+public:
+    Item(const std::string& name, const std::string& desc) : name(name), description(desc) {}
+
+    void Interact() {
+        std::cout << "Interacting with " << name << ": " << description << std::endl;
+    }
+
+    std::string GetName() const { return name; }
+    std::string GetDescription() const { return description; }
+};
+
+// Task 3 from Part 1: Character and Player Classes
+class Character {
+protected:
+    std::string name;
+    int health;
+    std::vector<Item> inventory;
+
+public:
+    Character(const std::string& name, int health) : name(name), health(health) {}
+
+    void TakeDamage(int damage) {
+        health -= damage;
+        if (health < 0) health = 0;
+    }
+};
+
+class Player : public Character {
+private:
+    Room* location;
+
+public:
+    Player(const std::string& name, int health) : Character(name, health), location(nullptr) {}
+
+    void SetLocation(Room* newLocation) {
+        location = newLocation;
+    }
+
+    Room* GetLocation() const { return location; }
+};
+
+// Task 1 from Part 2: Area Class
+class Area {
+private:
+    std::map<std::string, Room*> rooms;
+
+public:
+    void AddRoom(const std::string& name, Room* room) {
+        rooms[name] = room;
+    }
+
+    Room* GetRoom(const std::string& name) {
+        if (rooms.find(name) != rooms.end()) {
+            return rooms[name];
+        } else {
+            return nullptr;
+        }
+    }
+
+    void ConnectRooms(const std::string& room1Name, const std::string& room2Name, const std::string& direction) {
+        Room* room1 = GetRoom(room1Name);
+        Room* room2 = GetRoom(room2Name);
+        if (room1 && room2) {
+            room1->AddExit(direction, room2);
+        }
+    }
+
+    void LoadMapFromFile(const std::string& filename) {
+        std::ifstream file(filename);
+        std::string line;
+        while (std::getline(file, line)) {
+            std::istringstream iss(line);
+            std::string room1Name, room2Name, direction;
+            if (std::getline(iss, room1Name, '|') && std::getline(iss, room2Name, '|') && std::getline(iss, direction)) {
+                if (!GetRoom(room1Name)) AddRoom(room1Name, new Room(room1Name));
+                if (!GetRoom(room2Name)) AddRoom(room2Name, new Room(room2Name));
+                ConnectRooms(room1Name, room2Name, direction);
+            }
+        }
+    }
+};
+
+// Task 2 from Part 2: Refactor the Main Code
+int main() {
+    Area gameWorld;
+
+    // Load the game map from a text file
+    gameWorld.LoadMapFromFile("game_map.txt");
+
+    // Create a Player
+    Player player("Alice", 100);
+
+    // Set the player's starting room (you can modify this room name)
+    Room* currentRoom = gameWorld.GetRoom("startRoom");
+    player.SetLocation(currentRoom);
+
+    // Game loop
+
